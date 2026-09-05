@@ -173,9 +173,71 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# Cursor  
-#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to 
+# Cursor
+#  Cursor is an AI-powered code editor.`.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+
+# ============================================================
+# MELAS CRM - Node.js / Next.js / TypeScript
+# ============================================================
+
+# Node dependencies
+node_modules/
+
+# Environment files / secrets
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+out/
+
+# Node / TypeScript build output
+dist/
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Resume / candidate private files
+uploads/
+apps/api/uploads/
+storage/resumes/
+private-resumes/
+
+# Do not allow resume documents into Git
+*.pdf
+*.doc
+*.docx
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Test / coverage output
+coverage/
+test-results/
+playwright-report/
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Private keys / certificates / credentials
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
