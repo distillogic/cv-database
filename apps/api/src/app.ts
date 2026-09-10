@@ -1,4 +1,9 @@
+import { applicationRouter, } from "./modules/applications/application.routes.js";
+import { inboundRouter, } from "./modules/inbound/inbound.routes.js";
+import { resumeIdentityRouter } from "./modules/resumes/resume.identity.routes.js";
+import { jobRouter } from "./modules/jobs/job.routes.js";
 import { resumeRouter } from "./modules/resumes/resume.routes.js";
+
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
@@ -49,5 +54,32 @@ app.get("/health", async (_req, res) => {
   }
 });
 
-app.use("/api/Candidates", candidateRouter);
-app.use("/api/resumes", resumeRouter);
+app.use(
+  "/api/candidates",
+  candidateRouter
+);
+
+app.use(
+  "/api/resumes",
+  resumeRouter
+);
+
+app.use(
+  "/api/resumes",
+  resumeIdentityRouter
+);
+
+app.use(
+  "/api/jobs",
+  jobRouter
+);
+
+app.use(
+  "/api/inbound-submissions",
+  inboundRouter
+);
+
+app.use(
+  "/api/applications",
+  applicationRouter
+);
