@@ -11,6 +11,11 @@ const evidenceSchema =
     .min(1)
     .max(3);
 
+const classificationEvidenceSchema =
+  z.array(evidenceSnippetSchema)
+    .min(1)
+    .max(5);
+
 function normalizeNullableValue(
   value: unknown
 ): unknown {
@@ -56,6 +61,64 @@ function nullableText(
       .nullable()
   );
 }
+
+const professionalCategorySchema =
+  z.enum([
+    "it_software",
+    "data_analytics",
+    "accounting_finance",
+    "sales",
+    "marketing",
+    "human_resources",
+    "administration",
+    "engineering",
+    "logistics_supply_chain",
+    "hospitality_tourism",
+    "customer_service",
+    "healthcare",
+    "construction_trades",
+    "education",
+    "legal",
+    "operations",
+    "other",
+  ]);
+
+const classificationSchema =
+  z.object({
+    professionalCategory:
+      professionalCategorySchema,
+
+    professionalSubcategory:
+      nullableText(160),
+
+    estimatedSeniority:
+      z.enum([
+        "junior",
+        "senior",
+        "expert",
+      ])
+        .nullable(),
+
+    confidence:
+      z.enum([
+        "low",
+        "medium",
+        "high",
+      ]),
+
+    evidence:
+      classificationEvidenceSchema,
+
+    // Optional only for backward compatibility with prompt v1.4.
+    // New analyses are required to return this field by resume.ai.ts.
+    seniorityEvidence:
+      z.array(
+        evidenceSnippetSchema
+      )
+        .max(3)
+        .optional(),
+  })
+  .strict();
 
 const skillSchema =
   z.object({
@@ -225,6 +288,12 @@ export const resumeAnalysisSchema =
         drivingLicenseSchema
       )
         .max(30),
+
+    // Optional only for backward compatibility with older stored analyses.
+    // New AI analyses are required to return it by resume.ai.ts.
+    classification:
+      classificationSchema
+        .optional(),
   })
   .strict();
 

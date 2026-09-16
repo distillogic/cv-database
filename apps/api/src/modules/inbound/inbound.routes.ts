@@ -28,6 +28,13 @@ const reserveSchema =
         .trim()
         .min(1)
         .max(255),
+
+    externalJobId:
+      z.string()
+        .trim()
+        .min(1)
+        .max(255)
+        .optional(),
   });
 
 const updateSchema =
@@ -131,8 +138,8 @@ inboundRouter.post(
       const result =
         await reserveInboundSubmission(
           parsed.data.source,
-          parsed.data
-            .externalId
+          parsed.data.externalId,
+          parsed.data.externalJobId
         );
 
       return res
@@ -160,8 +167,7 @@ inboundRouter.post(
         .status(500)
         .json({
           error:
-            error instanceof
-              Error
+            error instanceof Error
               ? error.message
               : "Inbound reservation failed.",
         });
@@ -178,10 +184,9 @@ inboundRouter.post(
   ) => {
     try {
       const parsed =
-        fingerprintSchema
-          .safeParse(
-            req.body
-          );
+        fingerprintSchema.safeParse(
+          req.body
+        );
 
       if (
         !parsed.success
@@ -200,11 +205,8 @@ inboundRouter.post(
 
       const result =
         await registerResumeFingerprint(
-          parsed.data
-            .submissionId,
-
-          parsed.data
-            .resumeSha256
+          parsed.data.submissionId,
+          parsed.data.resumeSha256
         );
 
       return res.json({
@@ -229,8 +231,7 @@ inboundRouter.post(
         .status(500)
         .json({
           error:
-            error instanceof
-              Error
+            error instanceof Error
               ? error.message
               : "Resume fingerprint registration failed.",
         });
@@ -304,8 +305,7 @@ inboundRouter.patch(
         .status(500)
         .json({
           error:
-            error instanceof
-              Error
+            error instanceof Error
               ? error.message
               : "Inbound update failed.",
         });

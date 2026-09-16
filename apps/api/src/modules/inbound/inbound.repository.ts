@@ -5,6 +5,10 @@ export type InboundSubmission = {
   source: string;
   external_id: string;
 
+  external_job_id:
+    | string
+    | null;
+
   candidate_id:
     | string
     | null;
@@ -38,7 +42,8 @@ export type InboundSubmission = {
 
 export async function reserveInboundSubmission(
   source: string,
-  externalId: string
+  externalId: string,
+  externalJobId?: string | null
 ): Promise<{
   created: boolean;
   submission: InboundSubmission;
@@ -49,11 +54,13 @@ export async function reserveInboundSubmission(
       INSERT INTO inbound_submissions (
         source,
         external_id,
+        external_job_id,
         processing_status
       )
       VALUES (
         $1,
         $2,
+        $3,
         'received'
       )
       ON CONFLICT (
@@ -66,6 +73,7 @@ export async function reserveInboundSubmission(
       [
         source,
         externalId,
+        externalJobId ?? null,
       ]
     );
 
@@ -290,11 +298,6 @@ export async function registerResumeFingerprint(
       );
     }
 
-    /**
-     * Find a previous successfully
-     * processed copy of the exact
-     * same CV.
-     */
     const duplicateResult =
       await client.query<InboundSubmission>(
         `
@@ -349,16 +352,6 @@ export async function registerResumeFingerprint(
       };
     }
 
-    /**
-     * Same exact CV already exists.
-     *
-     * Reuse Candidate + Resume,
-     * but DO NOT mark the new
-     * submission completed yet.
-     *
-     * A new Application still has
-     * to be created for its Job.
-     */
     const linkedResult =
       await client.query<InboundSubmission>(
         `

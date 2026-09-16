@@ -21,6 +21,176 @@ function normalizeForComparison(
     .trim();
 }
 
+const leisureHeadingPatterns = [
+  /^hobbies?$/i,
+  /^interests?$/i,
+  /^personal interests?$/i,
+  /^leisure(?: activities)?$/i,
+  /^activities$/i,
+  /^χόμπι$/i,
+  /^χομπι$/i,
+  /^ενδιαφέροντα$/i,
+  /^ενδιαφεροντα$/i,
+  /^προσωπικά ενδιαφέροντα$/i,
+  /^προσωπικα ενδιαφεροντα$/i,
+  /^δραστηριότητες$/i,
+  /^δραστηριοτητες$/i,
+];
+
+const professionalSectionPatterns = [
+  /^skills?$/i,
+  /^technical skills?$/i,
+  /^professional skills?$/i,
+  /^digital skills?$/i,
+  /^competenc(?:y|ies)$/i,
+  /^δεξιότητες$/i,
+  /^δεξιοτητες$/i,
+  /^τεχνικές δεξιότητες$/i,
+  /^τεχνικες δεξιοτητες$/i,
+  /^επαγγελματικές δεξιότητες$/i,
+  /^επαγγελματικες δεξιοτητες$/i,
+  /^work experience$/i,
+  /^experience$/i,
+  /^employment history$/i,
+  /^επαγγελματική εμπειρία$/i,
+  /^επαγγελματικη εμπειρια$/i,
+  /^education$/i,
+  /^εκπαίδευση$/i,
+  /^εκπαιδευση$/i,
+  /^languages?$/i,
+  /^γλώσσες$/i,
+  /^γλωσσες$/i,
+  /^certifications?$/i,
+  /^courses?(?: and training)?$/i,
+];
+
+function cleanHeadingCandidate(
+  line: string
+): string {
+  return normalizeForComparison(
+    line
+      .replace(/[:：]\s*$/u, "")
+      .trim()
+  );
+}
+
+function matchesHeading(
+  line: string,
+  patterns: RegExp[]
+): boolean {
+  const candidate =
+    cleanHeadingCandidate(line);
+
+  return patterns.some(
+    (pattern) =>
+      pattern.test(candidate)
+  );
+}
+
+function lineContainsLeisureLabel(
+  line: string
+): boolean {
+  const normalized =
+    normalizeForComparison(line);
+
+  return [
+    "hobby",
+    "hobbies",
+    "interests",
+    "personal interests",
+    "leisure",
+    "χόμπι",
+    "χομπι",
+    "ενδιαφέροντα",
+    "ενδιαφεροντα",
+    "προσωπικά ενδιαφέροντα",
+    "προσωπικα ενδιαφεροντα",
+  ].some(
+    (label) =>
+      normalized.includes(
+        normalizeForComparison(label)
+      )
+  );
+}
+
+function evidenceAppearsInLeisureSection(
+  evidence: string,
+  analysisText: string
+): boolean {
+  const normalizedEvidence =
+    normalizeForComparison(evidence);
+
+  if (!normalizedEvidence) {
+    return false;
+  }
+
+  const lines =
+    analysisText
+      .split(/\r?\n/)
+      .map((line) => line.trim());
+
+  for (
+    let index = 0;
+    index < lines.length;
+    index += 1
+  ) {
+    const normalizedLine =
+      normalizeForComparison(
+        lines[index]
+      );
+
+    if (
+      !normalizedLine.includes(
+        normalizedEvidence
+      )
+    ) {
+      continue;
+    }
+
+    if (
+      lineContainsLeisureLabel(
+        lines[index]
+      )
+    ) {
+      return true;
+    }
+
+    for (
+      let offset = 1;
+      offset <= 8 &&
+      index - offset >= 0;
+      offset += 1
+    ) {
+      const previousLine =
+        lines[index - offset];
+
+      if (!previousLine) {
+        continue;
+      }
+
+      if (
+        matchesHeading(
+          previousLine,
+          leisureHeadingPatterns
+        )
+      ) {
+        return true;
+      }
+
+      if (
+        matchesHeading(
+          previousLine,
+          professionalSectionPatterns
+        )
+      ) {
+        break;
+      }
+    }
+  }
+
+  return false;
+}
+
 function evidenceExistsInResume(
   evidence: string,
   analysisText: string
@@ -132,6 +302,12 @@ function validateSkills(
           keepValidEvidence(
             skill.evidence,
             analysisText
+          ).filter(
+            (snippet) =>
+              !evidenceAppearsInLeisureSection(
+                snippet,
+                analysisText
+              )
           );
 
         if (
@@ -469,51 +645,209 @@ function validateDrivingLicenses(
   );
 }
 
+
+function validateClassification(
+  analysis: ResumeAnalysis,
+  analysisText: string,
+  validatedEvidence: string[],
+  validatedWorkEvidence: string[]
+): ResumeAnalysis["classification"] {
+  const classification =
+    analysis.classification;
+
+  if (!classification) {
+    return undefined;
+  }
+
+  const validatedEvidenceKeys =
+    new Set(
+      validatedEvidence.map(
+        normalizeForComparison
+      )
+    );
+
+  const evidence =
+    deduplicate(
+      keepValidEvidence(
+        classification.evidence,
+        analysisText
+      ).filter(
+        (snippet) =>
+          validatedEvidenceKeys.has(
+            normalizeForComparison(
+              snippet
+            )
+          )
+      ),
+      (snippet) => snippet
+    );
+
+  if (evidence.length === 0) {
+    return undefined;
+  }
+
+  const classificationEvidenceKeys =
+    new Set(
+      evidence.map(
+        normalizeForComparison
+      )
+    );
+
+  const workEvidenceKeys =
+    new Set(
+      validatedWorkEvidence.map(
+        normalizeForComparison
+      )
+    );
+
+  const seniorityEvidence =
+    deduplicate(
+      keepValidEvidence(
+        classification
+          .seniorityEvidence ?? [],
+        analysisText
+      ).filter(
+        (snippet) => {
+          const normalized =
+            normalizeForComparison(
+              snippet
+            );
+
+          return (
+            workEvidenceKeys.has(
+              normalized
+            ) &&
+            classificationEvidenceKeys.has(
+              normalized
+            )
+          );
+        }
+      ),
+      (snippet) => snippet
+    );
+
+  const estimatedSeniority =
+    seniorityEvidence.length > 0
+      ? classification
+          .estimatedSeniority
+      : null;
+
+  return {
+    professionalCategory:
+      classification
+        .professionalCategory,
+
+    professionalSubcategory:
+      classification
+        .professionalSubcategory,
+
+    estimatedSeniority,
+
+    confidence:
+      classification.confidence,
+
+    evidence,
+
+    seniorityEvidence,
+  };
+}
+
 export function validateResumeEvidence(
   analysis: ResumeAnalysis,
   analysisText: string
 ): ResumeAnalysis {
+  const skills =
+    validateSkills(
+      analysis,
+      analysisText
+    );
+
+  const languages =
+    validateLanguages(
+      analysis,
+      analysisText
+    );
+
+  const workExperience =
+    validateWorkExperience(
+      analysis,
+      analysisText
+    );
+
+  const education =
+    validateEducation(
+      analysis,
+      analysisText
+    );
+
+  const coursesAndTraining =
+    validateCoursesAndTraining(
+      analysis,
+      analysisText
+    );
+
+  const certifications =
+    validateCertifications(
+      analysis,
+      analysisText
+    );
+
+  const drivingLicenses =
+    validateDrivingLicenses(
+      analysis,
+      analysisText
+    );
+
+  const validatedEvidence = [
+    ...skills.flatMap(
+      (item) => item.evidence
+    ),
+    ...languages.flatMap(
+      (item) => item.evidence
+    ),
+    ...workExperience.flatMap(
+      (item) => item.evidence
+    ),
+    ...education.flatMap(
+      (item) => item.evidence
+    ),
+    ...coursesAndTraining.flatMap(
+      (item) => item.evidence
+    ),
+    ...certifications.flatMap(
+      (item) => item.evidence
+    ),
+    ...drivingLicenses.flatMap(
+      (item) => item.evidence
+    ),
+  ];
+
+  const validatedWorkEvidence =
+    workExperience.flatMap(
+      (item) => item.evidence
+    );
+
+  const classification =
+    validateClassification(
+      analysis,
+      analysisText,
+      validatedEvidence,
+      validatedWorkEvidence
+    );
+
   return {
-    skills:
-      validateSkills(
-        analysis,
-        analysisText
-      ),
+    skills,
+    languages,
+    workExperience,
+    education,
+    coursesAndTraining,
+    certifications,
+    drivingLicenses,
 
-    languages:
-      validateLanguages(
-        analysis,
-        analysisText
-      ),
-
-    workExperience:
-      validateWorkExperience(
-        analysis,
-        analysisText
-      ),
-
-    education:
-      validateEducation(
-        analysis,
-        analysisText
-      ),
-
-    coursesAndTraining:
-      validateCoursesAndTraining(
-        analysis,
-        analysisText
-      ),
-
-    certifications:
-      validateCertifications(
-        analysis,
-        analysisText
-      ),
-
-    drivingLicenses:
-      validateDrivingLicenses(
-        analysis,
-        analysisText
-      ),
+    ...(classification
+      ? {
+          classification,
+        }
+      : {}),
   };
 }

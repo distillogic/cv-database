@@ -35,6 +35,10 @@ type InboundSubmission = {
   source: string;
   external_id: string;
 
+  external_job_id:
+    | string
+    | null;
+
   candidate_id:
     | string
     | null;
@@ -267,7 +271,8 @@ async function ensureJobExists(
 
 async function reserveSubmission(
   source: string,
-  externalId: string
+  externalId: string,
+  externalJobId: string
 ): Promise<{
   created: boolean;
 
@@ -290,6 +295,7 @@ async function reserveSubmission(
           JSON.stringify({
             source,
             externalId,
+            externalJobId,
           }),
 
         cache:
@@ -564,6 +570,72 @@ async function identifyResume(
   };
 }
 
+async function resolveExternalJob(
+  source: string,
+  externalJobId: string
+): Promise<string> {
+  const params =
+    new URLSearchParams({
+      source,
+      externalJobId,
+    });
+
+  const response =
+    await fetch(
+      `${API_BASE_URL}/api/job-source-mappings/resolve?${params.toString()}`,
+      {
+        cache:
+          "no-store",
+      }
+    );
+
+  const result =
+    await readJson(
+      response
+    );
+
+  if (!response.ok) {
+    throw new Error(
+      `Could not resolve external job (${response.status}): ${JSON.stringify(result)}`
+    );
+  }
+
+  if (
+    typeof result !==
+      "object" ||
+    result === null
+  ) {
+    throw new Error(
+      "Invalid job mapping response."
+    );
+  }
+
+  const data =
+    (
+      result as {
+        data?: {
+          job_id?:
+            string | number;
+        };
+      }
+    ).data;
+
+  if (
+    data?.job_id ===
+      undefined ||
+    data.job_id ===
+      null
+  ) {
+    throw new Error(
+      "Job mapping did not return a CRM job ID."
+    );
+  }
+
+  return String(
+    data.job_id
+  );
+}
+
 export async function POST(
   request: Request
 ) {
@@ -660,9 +732,9 @@ export async function POST(
         "externalId"
       );
 
-    const jobIdValue =
+    const externalJobIdValue =
       formData.get(
-        "jobId"
+        "externalJobId"
       );
 
     const resumeValue =
@@ -713,26 +785,17 @@ export async function POST(
       );
     }
 
-    const rawJobId =
-      typeof jobIdValue ===
+    const externalJobId =
+      typeof externalJobIdValue ===
         "string"
-        ? jobIdValue.trim()
+        ? externalJobIdValue.trim()
         : "";
 
-    const jobIdNumber =
-      Number(rawJobId);
-
-    if (
-      !rawJobId ||
-      !Number.isSafeInteger(
-        jobIdNumber
-      ) ||
-      jobIdNumber <= 0
-    ) {
+    if (!externalJobId) {
       return NextResponse.json(
         {
           error:
-            "A valid jobId is required.",
+            "externalJobId is required.",
         },
         {
           status: 400,
@@ -741,11 +804,15 @@ export async function POST(
     }
 
     const jobId =
-      String(jobIdNumber);
+      await resolveExternalJob(
+        source,
+        externalJobId
+      );
 
     /**
-     * Validate job BEFORE creating
-     * an inbound reservation.
+     * Validate resolved CRM job
+     * before creating an inbound
+     * reservation.
      */
     await ensureJobExists(
       jobId
@@ -764,7 +831,8 @@ export async function POST(
     const reservation =
       await reserveSubmission(
         source,
-        externalId
+        externalId,
+        externalJobId
       );
 
     submissionId =
@@ -806,6 +874,9 @@ export async function POST(
 
             externalId:
               existing.external_id,
+
+            externalJobId:
+              existing.external_job_id,
 
             resumeSha256:
               existing.resume_sha256,
@@ -1197,6 +1268,7 @@ export async function POST(
             JSON.stringify({
               candidateId,
               jobId,
+              resumeId,
               source,
               status:
                 "new",
@@ -1310,6 +1382,8 @@ export async function POST(
           source,
 
           externalId,
+
+          externalJobId,
 
           resumeSha256,
 

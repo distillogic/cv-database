@@ -3,12 +3,12 @@ import { inboundRouter, } from "./modules/inbound/inbound.routes.js";
 import { resumeIdentityRouter } from "./modules/resumes/resume.identity.routes.js";
 import { jobRouter } from "./modules/jobs/job.routes.js";
 import { resumeRouter } from "./modules/resumes/resume.routes.js";
-
+import { jobSourceMappingRouter, } from "./modules/jobs/job-source-mapping.routes.js";
 import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { pinoHttp } from "pino-http";
-
+import { candidateJobMatchRouter, } from "./modules/jobs/candidate-job-match.routes.js";
 import { pool } from "./db/pool.js";
 import { candidateRouter } from "./modules/Candidates/candidate.routes.js";
 
@@ -82,4 +82,12 @@ app.use(
 app.use(
   "/api/applications",
   applicationRouter
+);
+app.use(
+  "/api/job-source-mappings",
+  jobSourceMappingRouter
+);
+app.use(
+  "/api/candidates",
+  candidateJobMatchRouter
 );

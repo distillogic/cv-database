@@ -66,6 +66,29 @@ export async function replaceCandidateProfessionalProfile(
   analysisRunId: string | number,
   analysis: ResumeAnalysis
 ) {
+  const classification =
+    analysis.classification ?? null;
+
+  const classificationEvidence =
+    classification
+      ? JSON.stringify(
+          classification.evidence
+        )
+      : null;
+
+  const seniorityEvidence =
+    classification
+      ? JSON.stringify(
+          classification
+            .seniorityEvidence ?? []
+        )
+      : null;
+
+  const classificationUpdatedAt =
+    classification
+      ? new Date()
+      : null;
+
   const client =
     await pool.connect();
 
@@ -81,6 +104,13 @@ export async function replaceCandidateProfessionalProfile(
           source_resume_id,
           source_analysis_run_id,
           review_status,
+          professional_category,
+          professional_subcategory,
+          estimated_seniority,
+          classification_confidence,
+          classification_evidence,
+          seniority_evidence,
+          classification_updated_at,
           built_at,
           reviewed_at,
           updated_at
@@ -90,6 +120,13 @@ export async function replaceCandidateProfessionalProfile(
           $2,
           $3,
           'generated',
+          $4,
+          $5,
+          $6,
+          $7,
+          $8::jsonb,
+          $9::jsonb,
+          $10,
           NOW(),
           NULL,
           NOW()
@@ -106,6 +143,27 @@ export async function replaceCandidateProfessionalProfile(
           review_status =
             'generated',
 
+          professional_category =
+            EXCLUDED.professional_category,
+
+          professional_subcategory =
+            EXCLUDED.professional_subcategory,
+
+          estimated_seniority =
+            EXCLUDED.estimated_seniority,
+
+          classification_confidence =
+            EXCLUDED.classification_confidence,
+
+          classification_evidence =
+            EXCLUDED.classification_evidence,
+
+          seniority_evidence =
+            EXCLUDED.seniority_evidence,
+
+          classification_updated_at =
+            EXCLUDED.classification_updated_at,
+
           built_at =
             NOW(),
 
@@ -119,6 +177,17 @@ export async function replaceCandidateProfessionalProfile(
         candidateId,
         resumeId,
         analysisRunId,
+        classification
+          ?.professionalCategory ?? null,
+        classification
+          ?.professionalSubcategory ?? null,
+        classification
+          ?.estimatedSeniority ?? null,
+        classification
+          ?.confidence ?? null,
+        classificationEvidence,
+        seniorityEvidence,
+        classificationUpdatedAt,
       ]
     );
 
@@ -432,6 +501,13 @@ export async function getCandidateProfessionalProfile(
           source_resume_id,
           source_analysis_run_id,
           review_status,
+          professional_category,
+          professional_subcategory,
+          estimated_seniority,
+          classification_confidence,
+          classification_evidence,
+          seniority_evidence,
+          classification_updated_at,
           built_at,
           reviewed_at,
           updated_at
